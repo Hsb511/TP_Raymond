@@ -86,8 +86,8 @@ def give_privilege():
 
 def get_privilege():
     if request_Q[0] == myid:
-        request_Q.pop[0]
-        #todo entrée dans section critique
+        request_Q.pop(0)
+        #todo entree dans section critique
         using = True
         asked = False
         holder = myid

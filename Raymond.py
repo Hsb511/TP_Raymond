@@ -3,8 +3,6 @@ import pika
 import sys
 import time
 
-"""myid = ""
-holder = "" """
 using = False
 request_Q = []
 asked = False

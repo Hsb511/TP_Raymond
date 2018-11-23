@@ -2,16 +2,24 @@
 import pika
 import sys
 import time
+import random
+
+architecture = ["A", "B"]
+#architecture = ["A", "B", "C", "D", "E", "F"]
 
 connection = pika.BlockingConnection(pika.ConnectionParameters(
         host='localhost'))
 channel = connection.channel()
 
-channel.queue_declare('BI')
+while(True):
+	init_node = random.choice(architecture)
 
-channel.basic_publish(exchange='',
-					  routing_key='hello',
-					  body='B,request')
+	channel.queue_declare(init_node+"I")
+
+	channel.basic_publish(exchange='', routing_key='hello', body=init_node+',request')
+
+	time.sleep(30)
+
 connection.close()
 
 #while(True):

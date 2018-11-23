@@ -10,6 +10,7 @@ asked = False
 #On initialise le noeud, le premier argument est son id, le deuxieme est son holder
 myid = sys.argv[1]
 print("node's id is: " + myid)
+global holder
 holder = sys.argv[2]
 print("node's holder is: " + holder)
 
@@ -18,12 +19,16 @@ connection = pika.BlockingConnection(pika.ConnectionParameters(
         host='localhost'))
 channel = connection.channel()
 
+#On cree une queue par voisin, on inscrit manuellement le nom des queues
+neighbor1 = sys.argv[3]
+
+channel.queue_declare(queue=neighbor1)
+print("node " + myid + " is listening to " + neighbor1)
+
 #On cree la queue avec le voisin "I"
 channel.queue_declare(queue=myid+"I")
+print("node " + myid + " is listening to " + myid + "I")
 
-#On cree une queue par voisin, on inscrit manuellement le nom des queues
-channel.queue_declare(queue=sys.argv[3])
-print("node " + myid + " is listening to " + sys.argv[3])
 
 if (len(sys.argv) > 4):
     channel.queue_declare(queue=sys.argv[4])
@@ -39,20 +44,24 @@ if (len(sys.argv) > 5):
 #    sys.exit(1)
 
 #On definit la methode pour donner les privileges
-def give_privilege():
+def give_privilege(holder):
+    print ("trying give privilege to " + holder)
     # je suis holder et capable de donner le privilege (pas en section critique)
     if holder == myid and not using and request_Q != []:
         channel.queue_declare(queue= min(request_Q[0], myid) + max(request_Q[0], myid))
         channel.basic_publish(exchange='',
-                              routing_key='hello',
+                              routing_key='AB',
                               body= request_Q[0] + ',' + "privilege")
         holder = request_Q[0]
         request_Q.pop(0)
         asked = False
+        print("done")
+    else: print("condition not accepted to do so")
 
 
 #On definit la methode pour la reception des privileges
 def get_request(sender_id):
+    print ("just received a request, holder is: "+holder+ "sender_id is: "+ sender_id +" , request_Q : ", request_Q, " , asked : ", asked)
     # transmission de request d'un noeud precedent au suivant
     if holder != myid and request_Q != [] and not asked:
         channel.queue_declare(queue=min(holder, myid) + max(holder, myid))
@@ -60,25 +69,51 @@ def get_request(sender_id):
                               routing_key='hello',
                               body = myid + ',' + "request")
         request_Q.append(sender_id)
+        print("request transmission done")
     # je suis holder et recois une request alors que je suis deja occupe avec la section critique
     elif holder == myid and request_Q != [] and request_Q[0] != myid:
         request_Q.append(sender_id)
         time.sleep(1000)
-        give_privilege()
+        give_privilege(holder)
         request_Q.pop(0)
+        print("i'm already doing sthg")
     # je suis holder et recoit une request et ne fais rien
     elif holder == myid and request_Q == []:
-        give_privilege()
+	request_Q.append(sender_id)
+        give_privilege(holder)
+        print("just gave privilege")
+    elif holder != myid and request_Q == []:
+        request_Q.append(sender_id)
+        print("initiating a request on queue: "+min(holder, myid) + max(holder, myid))
+        channel.queue_declare(queue=min(holder, myid) + max(holder, myid))
+        #channel.queue_delete(queue=myid+"I")
+        channel.basic_publish(exchange='',
+                              routing_key='AB',
+                              body = myid + ',' + "request")
+        print("just made request")
 
 def get_privilege():
+    print("just received privilege")
+    channel.queue_declare(queue=myid+"I")
+    channel.basic_publish(exchange='', routing_key='hello', body="[x] "+myid+" is the current holder of the privilege")
     if request_Q[0] == myid:
         request_Q.pop(0)
         #todo entree dans section critique
         using = True
         asked = False
         holder = myid
+        print("i'm using it")
+	
+	channel.stop_consuming()
+	channel.queue_declare(queue=min("I", myid) + max("I", myid))
+        
+        channel.basic_publish(exchange='',
+                              routing_key='AI',
+                              body = myid + " : i'm the captain now" )
+
     else:
-        give_privilege
+        give_privilege()
+        print("just gave privilege")
         using = False
 
 #On definit la methode de callback principale
@@ -91,11 +126,15 @@ def callback(ch, method, properties, body):
     if message_type == "request":
         get_request(sender_id)
     elif message_type == "privilege":
-        get_privilege(sender_id)
+        get_privilege()
 
 
 channel.basic_consume(callback,
-                      queue=sys.argv[3],
+                      queue=myid + "I",
+                      no_ack=True)
+
+channel.basic_consume(callback,
+                      queue=neighbor1,
                       no_ack=True)
 
 if (len(sys.argv) > 4):

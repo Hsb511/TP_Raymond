@@ -18,6 +18,9 @@ connection = pika.BlockingConnection(pika.ConnectionParameters(
         host='localhost'))
 channel = connection.channel()
 
+#On cree la queue avec le voisin "I"
+channel.queue_declare(queue=myid+"I")
+
 #On cree une queue par voisin, on inscrit manuellement le nom des queues
 channel.queue_declare(queue=sys.argv[3])
 print("node " + myid + " is listening to " + sys.argv[3])

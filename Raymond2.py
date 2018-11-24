@@ -53,7 +53,7 @@ if (len(sys.argv) > 5):
 
 #On definit la methode pour donner les privileges
 def give_privilege(holder):
-    print ("trying give privilege to " + holder)
+    print ("trying give privilege to " + request_Q[0])
     # je suis holder et capable de donner le privilege (pas en section critique)
     if holder == myid and not using and request_Q != []:
         #channel.queue_declare(queue= min(request_Q[0], myid) + max(request_Q[0], myid))
@@ -69,7 +69,7 @@ def give_privilege(holder):
 
 #On definit la methode pour la reception des privileges
 def get_request(sender_id):
-    print ("just received a request, holder is: "+holder+ "sender_id is: "+ sender_id +" , request_Q : ", request_Q, " , asked : ", asked)
+    print ("just received a request, holder is: "+holder+ " sender_id is: "+ sender_id +" , request_Q : ", request_Q, " , asked : ", asked)
     # transmission de request d'un noeud precedent au suivant
     if holder != myid and request_Q != [] and not asked:
         #channel.queue_declare(queue=min(holder, myid) + max(holder, myid))
@@ -100,7 +100,7 @@ def get_request(sender_id):
                               body = myid + ',' + "request")
         print("just made request")
 
-def get_privilege():
+def get_privilege(holder):
     print("just received privilege")
     #channel.queue_declare(queue=myid+"I")
     channel.basic_publish(exchange='', routing_key=myid+"I", body="[x] "+myid+" is the current holder of the privilege")
@@ -120,7 +120,8 @@ def get_privilege():
                               body = myid + " : i'm the captain now" )
 
     else:
-        give_privilege()
+        holder = myid
+        give_privilege(holder)
         print("just gave privilege")
         using = False
 
@@ -134,25 +135,25 @@ def callback(ch, method, properties, body):
     if message_type == "request":
         get_request(sender_id)
     elif message_type == "privilege":
-        get_privilege()
+        get_privilege(holder)
 
 
 channel.basic_consume(callback,
-                      queue=myid + "I",
+                      queue="I"+myid,
                       no_ack=True)
 
 channel.basic_consume(callback,
-                      queue=neighbor1,
+                      queue=neighbor1+myid,
                       no_ack=True)
 
 if (len(sys.argv) > 4):
 	channel.basic_consume(callback,
-                      queue=sys.argv[4],
+                      queue=sys.argv[4]+myid,
                       no_ack=True)
 
 if (len(sys.argv) > 5):
 	channel.basic_consume(callback,
-                      queue=sys.argv[5],
+                      queue=sys.argv[5]+myid,
                       no_ack=True)
 
 channel.start_consuming()

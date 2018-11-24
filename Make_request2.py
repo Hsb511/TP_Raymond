@@ -28,11 +28,11 @@ connection.close()
 
 init_node = 'A'
 
-channel.queue_declare(init_node+"I")
+channel.queue_declare("I"+init_node)
 	
-print("envoi d'un message sur la queue : " + init_node + "I")
+print("envoi d'un message sur la queue : " + "I" + init_node)
 
-channel.basic_publish(exchange='', routing_key=init_node + "I", body=init_node+',request')
+channel.basic_publish(exchange='', routing_key="I" + init_node, body=init_node+',request')
 
 def callback(ch, method, properties, body):
     #message = body.split(',')
